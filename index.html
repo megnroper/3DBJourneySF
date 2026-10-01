@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3DB Agentic Customer Journey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one screen at a time. Story column | customer's phone | agent console. Slat-wipe transition between screens, like a blind closing and opening. */
+:root{
+  --paper:#EDF0EE; --surface:#F8FAF9; --raised:#FFFFFF; --ink:#182428; --muted:#56666A; --line:#D2D9D7;
+  --brass:#8C6119; --agent:#2E55D6; --agent-soft:#E3E9FB; --human:#2D7A57; --human-soft:#E0F0E8;
+  --warn:#AE4F1B; --warn-soft:#F8E6DA; --bubble-in:#2E55D6; --bubble-in-fg:#FFFFFF; --bubble-out:#E6EAE9;
+  --phone:#1B2528; --slat:#D9DFDC; --today:#7D8583;
+  --f-display:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --f-body:'Figtree', 'Segoe UI', system-ui, sans-serif;
+  --f-mono:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --paper:#101719; --surface:#172124; --raised:#1D292C; --ink:#E5ECEA; --muted:#9AA8AA; --line:#2B383B;
+  --brass:#D6A553; --agent:#86A2FF; --agent-soft:#1F2A47; --human:#6CC79A; --human-soft:#173327;
+  --warn:#E88F5A; --warn-soft:#3A2519; --bubble-in:#3D63E0; --bubble-in-fg:#FFFFFF; --bubble-out:#263337;
+  --phone:#05090A; --slat:#223034; --today:#8E9794; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --paper:#101719; --surface:#172124; --raised:#1D292C; --ink:#E5ECEA; --muted:#9AA8AA; --line:#2B383B;
+  --brass:#D6A553; --agent:#86A2FF; --agent-soft:#1F2A47; --human:#6CC79A; --human-soft:#173327;
+  --warn:#E88F5A; --warn-soft:#3A2519; --bubble-in:#3D63E0; --bubble-in-fg:#FFFFFF; --bubble-out:#263337;
+  --phone:#05090A; --slat:#223034; --today:#8E9794; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;padding-inline:clamp(16px,3vw,40px);padding-block:0 32px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--agent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+
+/* Top bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--paper);padding-block:14px 12px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid var(--line)}
+.bar-row{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.01em;margin-right:auto}
+.brand span{color:var(--muted);font-weight:500}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.mode button{border:0;background:none;padding:6px 14px;border-radius:999px;font-size:14px;font-weight:600;color:var(--muted)}
+.mode button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.nav{display:flex;gap:8px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--agent);border-color:var(--agent);color:#fff}
+.btn:disabled{opacity:.4;cursor:default}
+.count{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:52px;text-align:center}
+.hint{font-size:12px;color:var(--muted)}
+.track{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.track::-webkit-scrollbar{display:none}
+.track button{flex:1 0 auto;min-width:64px;border:0;background:none;padding:6px 2px 0;text-align:left;display:flex;flex-direction:column;gap:6px}
+.track i{display:block;height:4px;border-radius:2px;background:var(--line)}
+.track b{font-weight:500;font-size:11.5px;color:var(--muted);white-space:nowrap}
+.track button.done i{background:var(--muted)}
+.track button.on i{background:var(--agent)}
+.track button.on b{color:var(--ink);font-weight:700}
+
+/* Stage area */
+.stage{position:relative;padding-block:28px 8px;min-height:560px}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) 340px minmax(0,1fr);gap:28px;align-items:start}
+.story{display:flex;flex-direction:column;gap:18px;min-width:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass)}
+.story h2{font-size:clamp(28px,3.2vw,42px);line-height:1.08;font-weight:700}
+.story p{margin:0;max-width:62ch;color:var(--ink)}
+.today-tag{align-self:flex-start;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:4px 10px;border-radius:999px}
+.why{border-left:3px solid var(--brass);padding:4px 0 4px 14px;display:flex;flex-direction:column;gap:4px}
+.why strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass)}
+.why span{font-size:15px}
+.why small{font-size:12px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chips em{font-style:normal;font-size:12px;color:var(--muted);margin-right:4px}
+.chip{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--agent-soft);color:var(--agent)}
+
+/* Photo slots */
+.photo{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:16/9;max-width:100%;background:var(--slat)}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo .ph{position:absolute;inset:0;background:repeating-linear-gradient(180deg,var(--slat) 0 18px,var(--surface) 18px 20px);display:flex;align-items:flex-end;padding:12px}
+.photo .ph span{font-family:var(--f-mono);font-size:11.5px;background:var(--raised);color:var(--muted);padding:5px 9px;border-radius:6px;border:1px solid var(--line)}
+
+/* Phone */
+.phone-wrap{display:flex;flex-direction:column;gap:12px;align-items:center}
+.phone{width:100%;max-width:340px;background:var(--phone);border-radius:38px;padding:10px;box-shadow:0 24px 50px -24px rgba(10,20,25,.45)}
+.screen{background:var(--raised);border-radius:30px;height:560px;display:flex;flex-direction:column;overflow:hidden}
+.ph-head{padding:16px 18px 10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:2px}
+.ph-head .notch{width:90px;height:22px;background:var(--phone);border-radius:0 0 14px 14px;margin:-16px 0 8px}
+.ph-head b{font-size:14px}
+.ph-head small{font-size:11.5px;color:var(--muted)}
+.msgs{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth}
+.msg{max-width:84%;padding:9px 12px;border-radius:16px;font-size:13.5px;line-height:1.4}
+.msg.out{align-self:flex-start;background:var(--bubble-out);border-bottom-left-radius:4px}
+.msg.in{align-self:flex-end;background:var(--bubble-in);color:var(--bubble-in-fg);border-bottom-right-radius:4px}
+.msg.human{align-self:flex-start;background:var(--human-soft);border-bottom-left-radius:4px}
+.msg .who{display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.75;margin-bottom:2px}
+.msg.note{align-self:center;background:none;color:var(--muted);font-size:11.5px;text-align:center;padding:2px 8px}
+.msg.card{align-self:stretch;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;gap:6px}
+.msg.card b{font-size:13px}
+.msg.card .row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-top:1px dashed var(--line);padding-top:5px}
+.msg.card .row span:first-child{color:var(--muted)}
+.opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.opts span{font-size:12px;font-weight:600;border:1px solid var(--agent);color:var(--agent);border-radius:999px;padding:3px 10px}
+.opts span.pick{background:var(--agent);color:#fff}
+.msg.fresh{animation:rise .35s ease-out both}
+.ph-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--today);font-size:13px;padding:24px}
+.stepper{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.stepper .count{min-width:auto}
+.dim .screen{filter:grayscale(1);opacity:.75}
+
+/* Console */
+.console{background:var(--surface);border:1px solid var(--line);border-radius:16px;display:flex;flex-direction:column;min-width:0}
+.c-head{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.c-head h3{font-size:15px}
+.c-head .live{width:8px;height:8px;border-radius:50%;background:var(--human);box-shadow:0 0 0 3px var(--human-soft)}
+.c-head small{margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.lines{list-style:none;margin:0;padding:8px 16px 14px;display:flex;flex-direction:column}
+.line{display:grid;grid-template-columns:14px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.line:last-child{border-bottom:0}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--agent)}
+.line.data .dot{background:var(--brass)}
+.line.human .dot{background:var(--human)}
+.line.sys .dot{background:var(--muted)}
+.line.warn .dot{background:var(--warn)}
+.line .who{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.line .what{font-size:14px;font-weight:600}
+.line .detail{font-size:13px;color:var(--muted)}
+.line.fresh{animation:rise .4s ease-out both}
+.line.fresh .dot{animation:pulse 1s ease-out 1}
+.manual{list-style:none;margin:0;padding:10px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.manual li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;font-size:14px}
+.manual li::before{content:"";width:10px;height:10px;border:2px solid var(--today);border-radius:2px;margin-top:5px}
+.stat{margin:0 16px 16px;padding:12px 14px;border-radius:12px;background:var(--warn-soft);color:var(--ink);font-size:14px}
+.stat b{font-family:var(--f-display);font-size:24px;display:block;color:var(--warn)}
+.own{border-top:1px solid var(--line);padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.own h4{margin:0;font-family:var(--f-mono);font-size:11.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.own ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.own li{background:var(--human-soft);border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.own li{background:var(--bubble-out)}
+.own li b{font-size:13.5px}
+.chip.have{background:none;border:1px solid var(--line);color:var(--muted);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:10px 14px;padding:0 16px 14px;font-size:11.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+/* Opener / persona / summary */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:40px;align-items:center;padding-block:24px}
+.hero h1{font-size:clamp(36px,5vw,68px);line-height:1.02;font-weight:700}
+.hero p{font-size:18px;color:var(--muted);max-width:52ch;margin:0}
+.hero .meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+.hero .copy{display:flex;flex-direction:column;gap:22px}
+.hero .photo{aspect-ratio:4/3}
+.persona{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:32px;align-items:start}
+.profile{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.profile-top{display:flex;gap:16px;align-items:center;padding:18px}
+.avatar{width:84px;height:84px;border-radius:50%;overflow:hidden;flex:none}
+.avatar .photo{aspect-ratio:1;border-radius:50%}
+.avatar .photo .ph span{display:none}
+.profile-top h3{font-size:24px}
+.profile-top small{color:var(--muted);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line)}
+.tiles div{padding:14px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.tiles div:last-child{border-right:0}
+.tiles small{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tiles b{font-size:15px}
+.sources{border-top:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:10px}
+.sources small{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.src{display:flex;flex-wrap:wrap;gap:6px}
+.src span{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--raised)}
+.persona .right{display:flex;flex-direction:column;gap:18px}
+.summary{display:flex;flex-direction:column;gap:28px}
+.outcomes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.outcomes section{border-top:3px solid var(--ink);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.outcomes h3{font-size:19px}
+.outcomes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.matrix{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+.matrix th,.matrix td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:center}
+.matrix th:first-child,.matrix td:first-child{text-align:left;white-space:nowrap}
+.matrix thead th{font-family:var(--f-mono);font-size:11.5px;font-weight:500;color:var(--muted)}
+.matrix tbody tr:last-child td{border-bottom:0}
+.matrix td.lic{text-align:left;font-size:12.5px;color:var(--muted);min-width:220px}
+.owned-box{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.owned-box h3{font-size:18px;margin-bottom:8px}
+.owned-box ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+@media (max-width:760px){ .owned-box{grid-template-columns:minmax(0,1fr)} }
+.matrix .y{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--agent)}
+.matrix .n{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--line)}
+.foot{font-size:12.5px;color:var(--muted);max-width:90ch}
+.summary-top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px;align-items:end}
+
+/* Slat transition */
+.slats{position:fixed;inset:0;pointer-events:none;z-index:30;display:flex;flex-direction:column}
+.slats i{flex:1;background:var(--slat);transform:scaleY(0);transform-origin:center}
+.slats.run i{animation:slat .5s ease-in-out both}
+@keyframes slat{0%{transform:scaleY(0)}45%,55%{transform:scaleY(1.02)}100%{transform:scaleY(0)}}
+@keyframes rise{from{opacity:.001;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--agent-soft)}100%{box-shadow:0 0 0 10px transparent}}
+@media (prefers-reduced-motion: reduce){ .slats{display:none} .msg.fresh,.line.fresh,.line.fresh .dot{animation:none} .msgs{scroll-behavior:auto} }
+
+@media (max-width:1100px){ .grid{grid-template-columns:minmax(0,1fr) 320px} .console{grid-column:1 / -1} }
+@media (max-width:760px){
+  .grid,.hero,.persona,.outcomes,.summary-top{grid-template-columns:minmax(0,1fr)}
+  .screen{height:480px}
+  .hint{display:none}
+  .tiles{grid-template-columns:minmax(0,1fr)}
+  .tiles div{border-right:0;border-bottom:1px solid var(--line)}
+}
+</style>
+
+</head>
+<body>
+<div class="bar" role="banner">
+  <div class="bar-row">
+    <div class="brand">3 Day Blinds <span>× Salesforce · customer journey</span></div>
+    <div class="mode" role="group" aria-label="Experience">
+      <button id="m-today" type="button" aria-pressed="false">Today</button>
+      <button id="m-sf" type="button" aria-pressed="true">With Salesforce</button>
+    </div>
+    <div class="nav">
+      <button class="btn" id="back" type="button">Back</button>
+      <span class="count" id="count">1 / 12</span>
+      <button class="btn primary" id="next" type="button">Next</button>
+    </div>
+    <span class="hint">Arrow keys also work</span>
+  </div>
+  <nav class="track" id="track" aria-label="Stages"></nav>
+</div>
+
+<main class="stage" id="stage" aria-live="polite"></main>
+<div class="slats" id="slats" aria-hidden="true"></div>
+
+<script>
+/* Drop photos in here as data: URIs (or leave empty to show the slatted placeholder). */
+const PHOTOS = {
+  hero:     { src: "", label: "Living room with plantation shutters in afternoon light" },
+  persona:  { src: "", label: "Homeowner portrait" },
+  bare:     { src: "", label: "Empty living room with large bare windows" },
+  consult:  { src: "", label: "Design consultant with client and fabric samples" },
+  shipping: { src: "", label: "Boxes on a doorstep" },
+  install:  { src: "", label: "Installer fitting a shade at a window" },
+  finished: { src: "", label: "Bedroom with motorized roller shades" }
+};
+
+const PRODUCTS = {
+  mc:    "Marketing Cloud Next",
+  d360:  "Data 360",
+  sales: "Agentforce Sales",
+  cc:    "Agentforce Contact Center",
+  fs:    "Agentforce Field Service"
+};
+
+/* From 3DB's current asset summary */
+const LICENSED = {
+  mc:    "New",
+  d360:  "New",
+  sales: "New: agents on top of today's CRM",
+  cc:    "New: agents and voice on top of Digital Engagement and Knowledge",
+  fs:    "New: agents on top of Field Service+, Contractor Plus and Appointment Assistant"
+};
+
+/* Helpers for messages (m) and console lines (c) */
+const m = (kind, text, extra={}) => ({kind, text, ...extra});
+const c = (kind, who, what, detail="") => ({kind, who, what, detail});
+
+const SCREENS = [
+  { type:"opener", label:"Start" },
+  { type:"persona", label:"Customer" },
+
+  { type:"stage", label:"Ask", n:1,
+    title:"Jordan asks a question and gets an answer at 10pm",
+    sf:"Jordan has just moved in and has four rooms of bare windows. On the website late at night, Jordan asks whether shutters work on a bay window. An agent answers, asks about rooms and timing, and qualifies the lead in the same conversation.",
+    today:"The web form creates a lead in Salesforce. Nothing else happens until someone follows up or the consultant arrives.",
+    why:"Leads contacted within an hour are far more likely to qualify than leads contacted later.",
+    whySrc:"Harvard Business Review, “The Short Life of Online Sales Leads” (2011). Legacy benchmark from before AI agents.",
+    chips:["Agentforce Sales · Piper","Data 360"], products:["sales","d360"],
+    channel:"3 Day Blinds · Chat", contact:"Website · 10:04 pm",
+    steps:[
+      { msgs:[ m("in","Do shutters work on a bay window? Just moved in and have 4 rooms to do.") ],
+        log:[ c("data","Data 360","New profile started","3 page views: shutters, motorized shades · source: local search"),
+              c("agent","Piper · Agentforce Sales","Reads the question","Intent: product fit + new project") ] },
+      { msgs:[ m("out","Yes. Bay windows are one of the most common shutter projects. Each panel is made to fit the angle of the bay. Which rooms are you thinking about, and do you have a timeline?",{who:"3DB Assistant"}) ],
+        log:[ c("agent","Piper · Agentforce Sales","Answers from product knowledge","Grounded in 3DB product and installation content") ] },
+      { msgs:[ m("in","Living room bay, 2 bedrooms and an office. Ideally before the holidays.") ],
+        log:[ c("agent","Piper · Agentforce Sales","Qualifies the lead","4 rooms · shutters + motorized shades · timeline under 8 weeks"),
+              c("sys","Agentforce Sales","Lead created and scored","High intent · preferred channel: text") ] },
+      { msgs:[ m("out","Great. I can book a free in-home design consultation. What's your ZIP code?",{who:"3DB Assistant"}), m("in","80212") ],
+        log:[ c("agent","Piper · Agentforce Sales","Hands off to scheduling","ZIP 80212 · passes rooms and products") ] }
+    ],
+    todayPhone:[ m("note","Form submitted · 10:04 pm"), m("note","No reply until business hours") ],
+    manual:["Lead waits in a queue overnight","Someone calls back the next day to qualify","Room and product details captured by hand, if at all"],
+    owned:[{"name": "Field Service+", "use": "The web form creates a lead record. Nobody responds until someone works the queue."}], gap:["Agentforce Sales · Piper", "Data 360"],
+    stat:{ big:"Next day", text:"Typical first response to an after-hours web lead" }
+  },
+
+  { type:"stage", label:"Book", n:2,
+    title:"Jordan gets a visit in two days, with the right consultant",
+    sf:"The scheduling agent offers the soonest slots first. Optimization picks the best-fit design consultant for the ZIP code, the products Jordan wants, and each consultant's capacity. The Dispatch Center only steps in for exceptions.",
+    today:"Customers see a 7-day window with every slot shown. The consultant is assigned at random, and the calendar locks 72 hours out.",
+    why:"Earlier visits and better matches are the core of the Dispatch Center initiative.",
+    whySrc:"3 Day Blinds pre-read, October 2026: estimated $27M opportunity (2025 baseline).",
+    chips:["Agentforce Field Service · scheduling agent","Enhanced Scheduling and Optimization","Agentforce Sales"], products:["fs","sales"],
+    channel:"3 Day Blinds · Chat", contact:"Website · 10:07 pm",
+    steps:[
+      { msgs:[],
+        log:[ c("agent","Scheduling agent · Field Service","Searches territory 80212","Slots within 3 days first, then the wider window"),
+              c("sys","Enhanced Scheduling and Optimization","Scores consultants","Geography · skills (shutters, motorization) · capacity · performance") ] },
+      { msgs:[ m("out","The soonest times near you:",{who:"3DB Assistant", opts:["Thu 10:00 am","Thu 3:00 pm","Fri 9:00 am"]}) ],
+        log:[ c("agent","Scheduling agent · Field Service","Offers 3 slots","All within 72 hours") ] },
+      { msgs:[ m("in","Thursday 10") ],
+        log:[ c("sys","Field Service","Appointment booked","Thu 10:00 am · Dana M., design consultant · 6 mi away") ] },
+      { msgs:[ m("out","You're booked for Thursday at 10:00 am with Dana, who specializes in shutters and motorized shades. A confirmation is on its way by text.",{who:"3DB Assistant"}) ],
+        log:[ c("human","Dispatch Center","No action needed","Any reassignment later requires a reason and is logged") ] }
+    ],
+    todayPhone:[ m("note","Online calendar"), m("card","",{title:"Pick a time",rows:[["Window","Next 7 days"],["Slots shown","All 14"],["Consultant","Assigned at random"]]}) ],
+    manual:["Customer picks from every open slot across 7 days","Consultant assigned at random","District managers reassign by hand at any time, with no reason recorded"],
+    owned:[{"name": "Field Service+ scheduling", "use": "Every open slot across 7 days is shown; the consultant is assigned at random; the calendar locks 72 hours out."}, {"name": "Salesforce Maps and Territory Planning", "use": "District managers see territory polygons, not ZIP-level assignments."}], gap:["Agentforce Field Service · scheduling agent"],
+    stat:{ big:"T-72h", text:"Calendar locks three days out; the goal is T-24h" }
+  },
+
+  { type:"stage", label:"Prepare", n:3,
+    title:"Jordan hears from 3 Day Blinds before the visit",
+    sf:"Text is Jordan's preferred channel, so the journey decisioning agent uses it. Jordan gets a confirmation, a short style guide based on what they browsed, and a two-minute survey. The answers update Jordan's profile and the consultant's brief.",
+    today:"No product or company communication before the visit. The consultant may call ahead, and nearly a quarter of appointments cancel.",
+    why:"3DB modeled cancellations falling from 23.2% to 19.4% with pre-visit engagement.",
+    whySrc:"3 Day Blinds pre-read, October 2026.",
+    chips:["Marketing Cloud Next · journey decisioning agent","Data 360","Agentforce Field Service"], products:["mc","d360","fs"],
+    channel:"Messages", contact:"3 Day Blinds",
+    steps:[
+      { msgs:[ m("out","Hi Jordan, this is 3 Day Blinds. Your free design consultation is Thu at 10:00 am with Dana. Reply C to confirm."), m("in","C") ],
+        log:[ c("agent","Journey decisioning agent · Marketing Cloud Next","Chooses channel: text","From Data 360 profile: prefers text"),
+              c("sys","Field Service","Appointment confirmed","") ] },
+      { msgs:[ m("out","Here's a short guide to shutters for bay windows, plus a 2-minute survey so Dana arrives ready.",{opts:["Open guide","Take survey"]}) ],
+        log:[ c("agent","Journey decisioning agent · Marketing Cloud Next","Picks next best message","Browsed shutters + motorized shades → bay window guide") ] },
+      { msgs:[ m("note","Survey completed"), m("card","",{title:"Jordan's answers",rows:[["Rooms","4"],["Windows","11"],["Budget","$4,000–6,000"],["Priority","Light control in bedrooms"]]}) ],
+        log:[ c("data","Data 360","Profile updated","Survey answers written to profile and lead"),
+              c("sys","Agentforce Sales","Consultant brief refreshed","Dana's brief now includes rooms, windows and budget") ] },
+      { msgs:[ m("out","Reminder: Dana will see you tomorrow at 10:00 am."), m("out","Dana is on her way. Arriving about 9:55 am.") ],
+        log:[ c("sys","Field Service","ETA sent","Based on Dana's live location") ] }
+    ],
+    todayPhone:[ m("note","No messages before the visit") ],
+    manual:["Consultant gets the full lead and may call ahead","No intro, style guide or survey","No reminder or ETA"],
+    owned:[{"name": "Digital Engagement", "use": "Messaging is available, but nothing goes to the lead before the visit."}, {"name": "Appointment Assistant", "use": "No confirmation, reminder or ETA reaches the lead."}], gap:["Marketing Cloud Next · journey decisioning agent", "Data 360"],
+    stat:{ big:"23.2%", text:"Appointment cancellation rate (2025 baseline)" }
+  },
+
+  { type:"stage", label:"Refill", n:4,
+    title:"A cancellation becomes an earlier visit for someone else",
+    sf:"Another customer cancels a Wednesday slot. Data 360 finds waitlisted leads nearby who asked for an earlier date. Sam, a neighbor booked for next Monday, gets a text and takes the slot with one reply.",
+    today:"Freed slots usually stay empty. Nobody offers an earlier time to customers who are waiting.",
+    why:"Filling cancelled slots raises consultant utilization without adding headcount.",
+    whySrc:"3 Day Blinds pre-read, October 2026: automated cancellation refill and controlled overbooking.",
+    chips:["Marketing Cloud Next","Agentforce Field Service","Data 360"], products:["mc","fs","d360"],
+    channel:"Messages", contact:"Sam · waitlisted neighbor",
+    steps:[
+      { msgs:[],
+        log:[ c("warn","Field Service","Cancellation","Wed 1:00 pm · territory 80211 · slot freed"),
+              c("data","Data 360","Finds waitlisted leads","3 matches within 10 miles, ranked by requested date") ] },
+      { msgs:[ m("out","An earlier consultation opened up: Wed 1:00 pm. Reply YES to take it, or ignore this to keep Mon 9:00 am.") ],
+        log:[ c("agent","Journey decisioning agent · Marketing Cloud Next","Sends offer to top match","Text · expires in 2 hours") ] },
+      { msgs:[ m("in","YES") ],
+        log:[ c("sys","Field Service","Rebooked","Wed 1:00 pm · Monday slot returned to the pool"),
+              c("human","Dispatch Center","Overbooking limit checked","Within the district's rules") ] },
+      { msgs:[ m("out","Done. You're booked for Wednesday at 1:00 pm. Your Monday time has been released.") ],
+        log:[] }
+    ],
+    todayPhone:[ m("note","No message") ],
+    manual:["Cancelled slot stays empty","Waiting customers keep their later date","No record of who would take an earlier time"],
+    owned:[{"name": "Field Service+ scheduling", "use": "A cancellation frees the slot. Nothing refills it."}], gap:["Marketing Cloud Next · journey decisioning agent", "Data 360 · waitlist segment"],
+    stat:{ big:"Empty", text:"Most freed slots today" }
+  },
+
+  { type:"stage", label:"Visit", n:5,
+    title:"Dana arrives already knowing the rooms",
+    sf:"Dana opens a brief built from Jordan's browsing, survey and chat. She captures measurements by voice, the fields fill in, and the quote goes out before she leaves. Jordan signs the same day.",
+    today:"The consultant starts from scratch, takes notes by hand and re-enters them later.",
+    why:"3DB modeled a $53 increase in average order value.",
+    whySrc:"3 Day Blinds pre-read, October 2026: $4,083 → $4,136 (2025 baseline).",
+    chips:["Agentforce Sales","Data 360"], products:["sales","d360"], photo:"consult",
+    channel:"Consultant app", contact:"Dana M. · Thu 10:00 am",
+    steps:[
+      { msgs:[ m("card","",{title:"Brief · Jordan Reyes",rows:[["Rooms","Living (bay), 2 bedrooms, office"],["Interest","Shutters · motorized shades"],["Budget","$4,000–6,000"],["Note","Light control in bedrooms"]]}) ],
+        log:[ c("agent","Agentforce Sales","Brief generated","From chat, survey and browsing in Data 360") ] },
+      { msgs:[ m("in","Voice note: “Bay window, three panels, 72 by 60 inches. Primary bedroom wants motorized, blackout.”") ],
+        log:[ c("agent","Agentforce Sales","Voice capture","Room, size, product and options filled in") ] },
+      { msgs:[ m("card","",{title:"Quote sent",rows:[["Shutters","Living room bay"],["Motorized shades","Primary bedroom"],["Shades","Bedroom 2, office"],["Total (illustrative)","$4,720"]]}) ],
+        log:[ c("sys","Agentforce Sales","Quote sent by text and email","Opportunity updated automatically") ] },
+      { msgs:[ m("note","Jordan signed · order placed") ],
+        log:[ c("agent","Hunter · Agentforce Sales","Stands down","Would have followed up on day 2 and day 5 if unsigned, then handed back to Dana") ] }
+    ],
+    todayPhone:[ m("note","Paper notes and measurements"), m("note","Entered into Salesforce after the visit") ],
+    manual:["Consultant starts without context","Measurements written by hand, typed in later","Follow-up on unsigned quotes depends on the consultant"],
+    owned:[{"name": "Field Service+ mobile", "use": "The consultant gets the full lead record and types notes in after the visit."}, {"name": "Salesforce Maps", "use": "Routes and maps only."}], gap:["Agentforce Sales · brief, voice capture, follow-up agent", "Data 360"],
+    stat:{ big:"$4,083", text:"Average order value (2025 baseline)" }
+  },
+
+  { type:"stage", label:"Order", n:6,
+    title:"Jordan hears about a delay before thinking to call",
+    sf:"Order milestones from ePIC flow into Data 360 and trigger updates. When fabric for one shade is backordered, an exception is created and Jordan gets a text with the new date. A small team works the exception.",
+    today:"ePIC doesn't flag many backorders, so agents create them in Salesforce by hand. Nobody reaches out; the customer finds out by calling.",
+    why:"20 to 25% of contacts today are customers checking order status.",
+    whySrc:"3 Day Blinds pre-read, October 2026.",
+    chips:["Data 360 · ePIC order data","Marketing Cloud Next","Agentforce Contact Center"], products:["d360","mc","cc"],
+    channel:"Messages", contact:"3 Day Blinds",
+    steps:[
+      { msgs:[ m("out","Order confirmed: shutters and shades for 4 rooms. Expected install: Nov 18–22.") ],
+        log:[ c("data","Data 360","ePIC order received","Order lines: shutters, 3 shades, hardware, fabric") ] },
+      { msgs:[ m("out","Good news: your shutters are in production.") ],
+        log:[ c("data","Data 360","Status: in production","Milestone triggers journey") ] },
+      { msgs:[],
+        log:[ c("warn","Data 360","Backorder detected","Primary bedroom fabric · delayed about 6 days"),
+              c("sys","Agentforce Contact Center","Exception created","Assigned to the exceptions team · no customer call yet") ] },
+      { msgs:[ m("out","Heads up: the fabric for your primary bedroom shade is delayed about 6 days. Everything else is on schedule. We'll install it all together, now expected Nov 25–27."), m("in","Thanks for letting me know.") ],
+        log:[ c("agent","Journey decisioning agent · Marketing Cloud Next","Proactive notice sent","Text · with new date") ] }
+    ],
+    todayPhone:[ m("note","Order confirmation email"), m("note","No further updates") ],
+    manual:["Backorders not flagged by ePIC; created by hand","No proactive outreach","Customer calls to find out"],
+    owned:[{"name": "Field Service+ cases", "use": "Backorders are created by hand when someone notices."}, {"name": "Digital Engagement", "use": "Agents reply when the customer reaches out. Nothing goes out first."}], gap:["Data 360 · ePIC order data", "Marketing Cloud Next"],
+    stat:{ big:"20–25%", text:"Of contacts are order status checks" }
+  },
+
+  { type:"stage", label:"Call", n:7,
+    title:"Jordan calls anyway and doesn't have to explain",
+    sf:"Jordan calls to check on the order and ask about adding the office. An AI voice agent on the existing CXone line recognizes Jordan, answers the status question and texts tracking. For the new sale it hands off to Dana, who already has the summary.",
+    today:"Agents link calls to cases by hand. AI summaries can land on the wrong case. On the fourth or fifth contact, customers explain everything again.",
+    why:"Fewer repeat contacts, and people freed for the conversations that need them.",
+    whySrc:"3 Day Blinds pre-read, October 2026: 4.1 contacts per order; volume up 20% year over year.",
+    chips:["Agentforce Contact Center · Casey","Agentforce Voice","NICE CXone","Data 360"], products:["cc","d360","sales"],
+    channel:"Phone call", contact:"3 Day Blinds · 2:14",
+    steps:[
+      { msgs:[ m("in","Hi, I'm checking on my order.") ],
+        log:[ c("sys","NICE CXone → Agentforce Voice","Caller matched","Phone number → Jordan Reyes · open order + exception"),
+              c("agent","Casey · Agentforce Contact Center","Reads order from Data 360","Shutters shipped yesterday · fabric arrives Nov 21") ] },
+      { msgs:[ m("out","Hi Jordan. Your shutters shipped yesterday, and the bedroom fabric arrives Nov 21. Would you like tracking by text?",{who:"Casey"}), m("in","Yes please. Also, can I add blinds for my office?") ],
+        log:[ c("agent","Casey · Agentforce Contact Center","Sends tracking text","") ] },
+      { msgs:[ m("out","I'll connect you with Dana, your consultant. She'll have everything we just covered.",{who:"Casey"}) ],
+        log:[ c("agent","Casey · Agentforce Contact Center","Detects new sale · hands off","Summary written to Jordan's case"),
+              c("sys","Omni-Channel","Routes to owner","Dana is available → direct transfer") ] },
+      { msgs:[ m("human","Hi Jordan, it's Dana. I see the order and the fabric delay. Let's add the office. The installer can measure it on install day.",{who:"Dana · consultant"}) ],
+        log:[ c("human","Dana M.","Picks up with full context","Add-on opportunity created") ] }
+    ],
+    todayPhone:[ m("note","General queue · hold 6:40"), m("in","I'm calling about my order. I spoke to someone last week…"), m("note","Customer repeats the history") ],
+    manual:["IVR sends the call to a general queue","Agent searches for the order and links the call by hand","AI summary can land on the wrong case"],
+    owned:[{"name": "NICE CXone", "use": "The IVR sends most calls to one general queue."}, {"name": "Field Service+ service console", "use": "Agents link the call to the case by hand; AI summaries can land on the wrong case."}, {"name": "Knowledge", "use": "A knowledge base exists, but agents don't rely on it."}], gap:["Agentforce Contact Center · Casey", "Agentforce Voice on CXone", "Data 360"],
+    stat:{ big:"4.1", text:"Contacts per order" }
+  },
+
+  { type:"stage", label:"Schedule", n:8,
+    title:"The install is booked only when everything has arrived",
+    sf:"Hardware and fabric ship separately. Both shipments are tied to one work order, and the installer logs each on arrival. Only when the last piece is in does Jordan get a text to pick a time. Confirmations and reminders follow.",
+    today:"The order shows shipped when only the hardware has shipped. The installer schedules, arrives with half the product, and outreach to schedule stops after two attempts.",
+    why:"Holding scheduling until all shipments arrive removes most failed drapery installs.",
+    whySrc:"3 Day Blinds pre-read, October 2026.",
+    chips:["Agentforce Field Service","Data 360 · ePIC shipments","Marketing Cloud Next"], products:["fs","d360","mc"], photo:"shipping",
+    channel:"Messages", contact:"3 Day Blinds",
+    steps:[
+      { msgs:[],
+        log:[ c("data","Data 360","2 shipments linked to one work order","Hardware · fabric"),
+              c("sys","Field Service","Scheduling on hold","Hardware received Nov 19 · fabric in transit") ] },
+      { msgs:[],
+        log:[ c("human","Mike · installer app","Logs fabric received","Nov 21 · photo attached"),
+              c("sys","Field Service","Released for scheduling","All components received") ] },
+      { msgs:[ m("out","Everything for your order has arrived. Pick your install time:",{opts:["Tue 8:00 am","Tue 1:00 pm","Wed 8:00 am"]}), m("in","Tue 8:00 am") ],
+        log:[ c("agent","Scheduling agent · Field Service","Assigns by partner rules","Mike · independent contractor · 80212 · motorization certified"),
+              c("sys","Field Service","Duration set by job","4 rooms · 11 windows · motorized → 3.5 hours") ] },
+      { msgs:[ m("out","Confirmed: Tue Nov 25 at 8:00 am with Mike. We'll remind you the day before.") ],
+        log:[ c("agent","Journey decisioning agent · Marketing Cloud Next","Confirmation and reminders scheduled","Keeps going until the install is booked") ] }
+    ],
+    todayPhone:[ m("note","Order status: Shipped"), m("note","Only the hardware has shipped"), m("out","Please schedule your install. (Attempt 2 of 2)") ],
+    manual:["Status says shipped when only hardware ships","Installer has no receiving view","Outreach stops after the second attempt"],
+    owned:[{"name": "Field Service+ work orders", "use": "One “shipped” status; hardware and fabric shipments aren't linked."}, {"name": "Contractor Plus and partner community", "use": "Installers see their jobs but can't log what arrived."}, {"name": "Appointment Assistant", "use": "Customers self-schedule online; outreach stops after the second attempt."}], gap:["Data 360 · ePIC shipment data", "Agentforce Field Service · scheduling agent", "Marketing Cloud Next"],
+    stat:{ big:"Half", text:"Of the product can be missing when a drapery installer arrives" }
+  },
+
+  { type:"stage", label:"Install", n:9,
+    title:"Install day runs on time, or Jordan knows why",
+    sf:"Jordan gets a live ETA and a heads-up when Mike's earlier job runs long. Mike listens to a pre-job brief, captures notes by voice, and measures the office for the add-on. A completion summary and review request follow.",
+    today:"Every job gets the same duration. Nobody is alerted when an installer runs late, and notes sit in Chatter with everything else.",
+    why:"On-time installs fell from 85% to about 71% between April and August.",
+    whySrc:"3 Day Blinds pre-read, October 2026.",
+    chips:["Agentforce Field Service · Appointment Assistant","Field Voice","Marketing Cloud Next"], products:["fs","mc","d360"], photo:"install",
+    channel:"Messages", contact:"3 Day Blinds",
+    steps:[
+      { msgs:[ m("out","Mike is on his way. Arriving around 8:10 am.",{opts:["Track Mike"]}) ],
+        log:[ c("sys","Appointment Assistant","Live location shared","Customer tracking link") ] },
+      { msgs:[ m("out","Update: Mike is running about 20 minutes late. New arrival: 8:30 am.") ],
+        log:[ c("warn","Field Service","Earlier job running long","ETA +20 min → customer notified automatically") ] },
+      { msgs:[],
+        log:[ c("agent","Field Voice · Agentforce Field Service","Pre-job brief played","Products, rooms, motorization pairing"),
+              c("human","Mike · installer","Voice note","“Office window 36 by 48 inches, wants to match bedroom shades.”"),
+              c("sys","Agentforce Sales","Add-on sent to Dana","Office measurement attached") ] },
+      { msgs:[ m("out","Your install is complete. How did we do?",{opts:["1","2","3","4","5"],pick:"5"}) ],
+        log:[ c("agent","Agentforce Field Service","Post-work summary","Job closed on mobile · photos attached"),
+              c("data","Data 360","Profile updated","Installed products · review · add-on interest") ] }
+    ],
+    todayPhone:[ m("note","No arrival update"), m("note","Installer 40 minutes late, no notice") ],
+    manual:["Every job gets the same duration in the Gantt","No late alerts to the next customer","Installer notes in Chatter"],
+    owned:[{"name": "Field Service+ Gantt", "use": "Every job gets the same duration."}, {"name": "Appointment Assistant", "use": "No running-late alert reaches the customer."}, {"name": "Contractor Plus mobile", "use": "Installer notes go to Chatter with everything else."}], gap:["Agentforce Field Service · Field Voice", "Data 360"],
+    stat:{ big:"85% → 71%", text:"Install on-time rate, April to August" }
+  },
+
+  { type:"summary", label:"Summary" }
+];
+
+const OUTCOMES = [
+  { h:"Marketing and sales", li:["Leads answered and qualified at any hour","Earlier visits with a best-fit consultant","Pre-visit engagement aimed at cancellations and order value","Cancelled slots offered to waiting customers"] },
+  { h:"Contact center", li:["Customers told about delays before they call","Order status answered by an AI agent on the existing CXone line","Hand-offs arrive with the full history on the right case"] },
+  { h:"Field service and installation", li:["Installs booked only when every shipment has arrived","Durations set by job, with late alerts to customers","Installer notes captured by voice and turned into add-on sales"] }
+];
+
+/* ---------- State and rendering ---------- */
+const state = { i:0, step:0, mode:"sf" };
+const stageEl = document.getElementById("stage");
+const track = document.getElementById("track");
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+
+function photo(key, cls=""){
+  const p = PHOTOS[key]; if(!p) return "";
+  return `<div class="photo ${cls}">${p.src ? `<img src="${p.src}" alt="${esc(p.label)}">` : `<div class="ph"><span>Photo slot · ${esc(p.label)}</span></div>`}</div>`;
+}
+
+function msgHTML(x, fresh){
+  const f = fresh ? " fresh" : "";
+  if(x.kind==="note") return `<div class="msg note${f}">${esc(x.text)}</div>`;
+  if(x.kind==="card") return `<div class="msg card${f}"><b>${esc(x.title)}</b>${x.rows.map(r=>`<div class="row"><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join("")}</div>`;
+  const who = x.who ? `<span class="who">${esc(x.who)}</span>` : "";
+  const opts = x.opts ? `<div class="opts">${x.opts.map(o=>`<span class="${x.pick===o?'pick':''}">${esc(o)}</span>`).join("")}</div>` : "";
+  return `<div class="msg ${x.kind}${f}">${who}${esc(x.text)}${opts}</div>`;
+}
+
+function lineHTML(l, fresh, idx){
+  return `<li class="line ${l.kind}${fresh?' fresh':''}" style="${fresh?`animation-delay:${idx*0.18}s`:''}"><span class="dot"></span><div><div class="who">${esc(l.who)}</div><div class="what">${esc(l.what)}</div>${l.detail?`<div class="detail">${esc(l.detail)}</div>`:""}</div></li>`;
+}
+
+function renderTrack(){
+  track.innerHTML = SCREENS.map((s,k)=>`<button type="button" data-k="${k}" class="${k===state.i?'on':k<state.i?'done':''}" aria-current="${k===state.i?'step':'false'}"><i></i><b>${s.n?s.n+'. ':''}${esc(s.label)}</b></button>`).join("");
+  track.querySelectorAll("button").forEach(b=>b.onclick=()=>go(+b.dataset.k,0,true));
+  const on = track.querySelector(".on"); if(on) on.scrollIntoView({block:"nearest",inline:"center"});
+}
+
+function renderOpener(){
+  return `<section class="hero">
+    <div class="copy">
+      <span class="eyebrow">Working session · October 1, 2026</span>
+      <h1>One customer, from first click to installed blinds</h1>
+      <p>Follow a 3 Day Blinds purchase through nine moments. At each one, see what the customer experiences and what the agents and people behind it are doing.</p>
+      <div class="meta"><span>9 stages</span><span>5 Salesforce products</span><span>Switch between Today and With Salesforce</span></div>
+      <div><button class="btn primary" type="button" id="start">Start the journey</button></div>
+    </div>
+    ${photo("hero")}
+  </section>`;
+}
+
+function renderPersona(){
+  return `<section class="persona">
+    <div class="right">
+      <span class="eyebrow">Meet the customer · illustrative</span>
+      <h2 style="font-size:clamp(28px,3.2vw,42px);line-height:1.08">Jordan just moved in and has four rooms of bare windows</h2>
+      <p style="margin:0;max-width:60ch">Every system in this journey reads from and writes to one Data 360 profile. That's why each agent and each person knows what happened before.</p>
+      ${photo("bare")}
+    </div>
+    <div class="profile">
+      <div class="profile-top"><div class="avatar">${photo("persona")}</div><div><h3>Jordan Reyes</h3><small>Denver, 80212 · new homeowner</small></div></div>
+      <div class="tiles">
+        <div><small>Rooms</small><b>4</b></div>
+        <div><small>Interest</small><b>Shutters, motorized shades</b></div>
+        <div><small>Preferred channel</small><b>Text</b></div>
+      </div>
+      <div class="sources"><small>Unified in Data 360</small>
+        <div class="src"><span>Web visits</span><span>Campaign source</span><span>Lead · Sales Cloud</span><span>Survey</span><span>ePIC orders</span><span>CXone calls</span><span>Cases</span><span>Work orders</span></div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function renderSummary(){
+  const stages = SCREENS.filter(s=>s.type==="stage");
+  const rows = Object.entries(PRODUCTS).map(([k,name])=>`<tr><td>${esc(name)}</td><td class="lic">${esc(LICENSED[k])}</td>${stages.map(s=>`<td>${s.products.includes(k)?'<span class="y" role="img" aria-label="used"></span>':'<span class="n" role="img" aria-label="not used"></span>'}</td>`).join("")}</tr>`).join("");
+  return `<section class="summary">
+    <div class="summary-top">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <span class="eyebrow">Summary</span>
+        <h2 style="font-size:clamp(28px,3.2vw,42px);line-height:1.08">What changes across the journey</h2>
+      </div>
+      ${photo("finished")}
+    </div>
+    <div class="outcomes">${OUTCOMES.map(o=>`<section><h3>${esc(o.h)}</h3><ul>${o.li.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>`).join("")}</div>
+    <div class="matrix-wrap"><table class="matrix"><thead><tr><th>Product</th><th>Versus today</th>${stages.map(s=>`<th>${s.n}. ${esc(s.label)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="owned-box">
+      <div><h3>Today: records that wait for people</h3><ul>
+        <li>Leads, cases and work orders are recorded, then wait in queues</li>
+        <li>Customers hear nothing until they call</li>
+        <li>Order and shipment status stays in ePIC</li>
+        <li>Every consultant visit and install is scheduled the same way</li>
+        <li>Each team sees its own slice of the customer</li>
+      </ul></div>
+      <div><h3>With Agentforce and Data 360: agents that act</h3><ul>
+        <li>Agents answer, book, follow up and resolve at any hour</li>
+        <li>Customers hear about changes before they call</li>
+        <li>ePIC order and shipment data drive every message and schedule</li>
+        <li>Scheduling matches the right person and waits until the product is ready</li>
+        <li>Everyone works from one Data 360 profile</li>
+      </ul></div>
+    </div>
+    <p class="foot">Today's tools are from 3DB's current Salesforce contract. Illustrative journey with a fictional customer. Figures are from 3 Day Blinds' pre-read (October 2026). Stages 5 through 9 depend on connecting ePIC order and shipment data to Data 360. The waitlist refill, the exceptions object and holding a job until every shipment arrives are configuration or build work, not out-of-the-box features.</p>
+  </section>`;
+}
+
+function renderStage(s, freshStep){
+  const sf = state.mode==="sf";
+  const shown = sf ? s.steps.slice(0, state.step+1) : [];
+  const msgs = sf
+    ? shown.map((st,k)=>st.msgs.map(x=>msgHTML(x, k===freshStep)).join("")).join("")
+    : s.todayPhone.map(x=>msgHTML(x,false)).join("");
+  let lineIdx = 0;
+  const lines = shown.map((st,k)=>st.log.map(l=>lineHTML(l, k===freshStep, k===freshStep?lineIdx++:0)).join("")).join("");
+  const last = s.steps.length-1;
+
+  return `<div class="grid">
+    <section class="story">
+      <span class="eyebrow">Stage ${s.n} of 9 · ${esc(s.label)}</span>
+      <h2>${esc(s.title)}</h2>
+      ${sf ? "" : `<span class="today-tag">Today</span>`}
+      <p>${esc(sf ? s.sf : s.today)}</p>
+      ${s.photo ? photo(s.photo) : ""}
+      <div class="why"><strong>Why it matters</strong><span>${esc(s.why)}</span><small>${esc(s.whySrc)}</small></div>
+      ${sf ? `<div class="chips"><em>New in this stage</em>${s.gap.map(x=>`<span class="chip new">${esc(x)}</span>`).join("")}</div>
+        <div class="chips"><em>Builds on what you own</em>${s.owned.map(o=>`<span class="chip have">${esc(o.name)}</span>`).join("")}</div>` : ""}
+    </section>
+    <div class="phone-wrap ${sf?'':'dim'}">
+      <div class="phone"><div class="screen">
+        <div class="ph-head"><span class="notch"></span><b>${esc(s.channel)}</b><small>${esc(s.contact)}</small></div>
+        ${msgs ? `<div class="msgs" id="msgs">${msgs}</div>` : `<div class="ph-empty">${sf?"The agents are working behind the scenes. Nothing for the customer to do yet.":"Nothing happens here today."}</div>`}
+      </div></div>
+      ${sf ? `<div class="stepper"><span class="count">Step ${state.step+1} of ${s.steps.length}</span>
+        <button class="btn" type="button" id="stepnext">${state.step<last?"Next step":"Next stage"}</button>
+        ${state.step<last?`<button class="btn" type="button" id="stepall">Show all</button>`:""}</div>` : ""}
+    </div>
+    <aside class="console" aria-label="${sf?'Agent activity':'Manual work today'}">
+      ${sf ? `<div class="c-head"><span class="live"></span><h3>Behind the scenes</h3><small>agents · data · people</small></div>
+        <ul class="lines">${lines || `<li class="line sys"><span class="dot"></span><div><div class="what">Waiting for the customer</div></div></li>`}</ul>
+        <div class="legend"><span><i style="background:var(--agent)"></i>Agent</span><span><i style="background:var(--brass)"></i>Data</span><span><i style="background:var(--human)"></i>Person</span><span><i style="background:var(--muted)"></i>System</span><span><i style="background:var(--warn)"></i>Exception</span></div>`
+      : `<div class="c-head"><h3>Manual work today</h3></div>
+        <ul class="manual">${s.manual.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+        <div class="stat"><b>${esc(s.stat.big)}</b>${esc(s.stat.text)}</div>
+        <div class="own">
+          <h4>What you run on today</h4>
+          <ul>${s.owned.map(o=>`<li><b>${esc(o.name)}</b><span>${esc(o.use)}</span></li>`).join("")}</ul>
+        </div>`}
+    </aside>
+  </div>`;
+}
+
+function render(freshStep=-1){
+  const s = SCREENS[state.i];
+  let html = "";
+  if(s.type==="opener") html = renderOpener();
+  else if(s.type==="persona") html = renderPersona();
+  else if(s.type==="summary") html = renderSummary();
+  else html = renderStage(s, freshStep);
+  stageEl.innerHTML = html;
+  document.getElementById("count").textContent = `${state.i+1} / ${SCREENS.length}`;
+  document.getElementById("back").disabled = state.i===0 && state.step===0;
+  document.getElementById("next").disabled = state.i===SCREENS.length-1;
+  document.getElementById("m-sf").setAttribute("aria-pressed", state.mode==="sf");
+  document.getElementById("m-today").setAttribute("aria-pressed", state.mode==="today");
+  renderTrack();
+  const box = document.getElementById("msgs"); if(box) box.scrollTop = box.scrollHeight;
+  const st = document.getElementById("start"); if(st) st.onclick = next;
+  const sn = document.getElementById("stepnext"); if(sn) sn.onclick = next;
+  const sa = document.getElementById("stepall"); if(sa) sa.onclick = () => { state.step = SCREENS[state.i].steps.length-1; render(); };
+  try{ window.claude?.hot?.snapshot?.(()=>({...state})); }catch(e){}
+}
+
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const slats = document.getElementById("slats");
+slats.innerHTML = "<i></i>".repeat(14);
+function wipe(fn){
+  if(reduce){ fn(); return; }
+  slats.classList.remove("run"); void slats.offsetWidth; slats.classList.add("run");
+  setTimeout(fn, 230);
+}
+
+function go(i, step=0, transition=false){
+  const doIt = () => { state.i = i; state.step = step; render(); window.scrollTo({top:0}); };
+  transition ? wipe(doIt) : doIt();
+}
+function next(){
+  const s = SCREENS[state.i];
+  if(s.type==="stage" && state.mode==="sf" && state.step < s.steps.length-1){ state.step++; render(state.step); return; }
+  if(state.i < SCREENS.length-1) go(state.i+1, 0, true);
+}
+function back(){
+  const s = SCREENS[state.i];
+  if(s.type==="stage" && state.mode==="sf" && state.step>0){ state.step--; render(); return; }
+  if(state.i>0){ const p = SCREENS[state.i-1]; go(state.i-1, p.type==="stage" ? p.steps.length-1 : 0, true); }
+}
+function setMode(md){ state.mode = md; render(); }
+
+document.getElementById("next").onclick = next;
+document.getElementById("back").onclick = back;
+document.getElementById("m-sf").onclick = () => setMode("sf");
+document.getElementById("m-today").onclick = () => setMode("today");
+document.addEventListener("keydown", e => {
+  if(e.target.closest && e.target.closest("input,textarea")) return;
+  if(e.key==="ArrowRight"){ e.preventDefault(); next(); }
+  if(e.key==="ArrowLeft"){ e.preventDefault(); back(); }
+});
+
+function start(data){
+  if(data && typeof data.i==="number"){ state.i = Math.min(data.i, SCREENS.length-1); state.step = data.step||0; state.mode = data.mode==="today"?"today":"sf"; }
+  render();
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
